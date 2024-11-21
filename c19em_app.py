@@ -22,46 +22,18 @@ metadata we generated using topic modeling and named entity recognition.
 * https://www.documentcloud.org/documents/20793561-leopold-nih-foia-anthony-fauci-emails
 """
 
+conn = st.connection("postgresql", type="sql", ttl="1d" )
 
-# initialize database connection - uses st.cache to only run once
-@st.experimental_singleton(suppress_st_warning=True)
-def init_connection():
-    return psycopg2.connect(**st.secrets["postgres"])
-
-
-# perform query - ses st.cache to only rerun once
-@st.experimental_memo
-def run_query(query):
-    with conn.cursor() as cur:
-        cur.execute(query)
-        return cur.fetchall()
-
-
-@st.experimental_memo
 def get_entity_list(qual):
-    entsfw = 'SELECT entity from covid19.entities where entity_id <= 515 and \
-    enttype '
-    entorder = 'order by entity'
-    lov = []
-    rows = run_query(entsfw + qual + entorder)
-    for r in rows:
-        lov.append(r[0])
-    return(lov)
+    q = f'SELECT entity from covid19.entities where entity_id <= 515 and \
+    enttype {qual} order by entity'
+    return conn.query(q)
 
-
-@st.experimental_memo
 def get_topic_list():
     tq = """select distinct top_topic
                from covid19.fauci_emails
                where top_topic is not null"""
-    lov = []
-    rows = run_query(tq)
-    for r in rows:
-        lov.append(r[0])
-    return(lov)
-
-
-conn = init_connection()
+    return conn.query(tq)
 
 # build dropdown lists for entity search
 person_list = get_entity_list("= 'PERSON' ")
@@ -78,13 +50,16 @@ select date(sent) date, count(*) emails
     group by date
     order by date;
 """
+cntsdf = conn.query(emcnts)
+cntsdf['date'] = pd.to_datetime(cntsdf['date']).dt.date
+st.vega_lite_chart(cntsdf, {"mark": {"type": "bar"},
+                             "encoding": {
+                                "x": {"field": 'date', "type": "temporal",
+                                        "axis": {"format": '%m-%d'}},
+                                "y": {"field": 'emails', "type": "quantitative"},
+                                }
+                            }, use_container_width=True)  
 
-cntsdf = pd.read_sql_query(emcnts, conn)
-c = alt.Chart(cntsdf).mark_bar().encode(
-    x=alt.X('date:T', scale=alt.Scale(domain=('2020-01-23', '2020-05-06'))),
-    y=alt.Y('emails:Q', scale=alt.Scale(domain=(0, 60)))
-    )
-st.altair_chart(c, use_container_width=True)
 
 """## Search Emails """
 with st.form(key='query_params'):
@@ -139,7 +114,7 @@ if ftq_text:
     qry_explain += f' and text body contains "{ftq_text}"'
 # execute query
 emqry = selfrom + where + where_ent + where_top + where_ft + ' order by sent'
-emdf = pd.read_sql_query(emqry, conn)
+emdf = conn.query(emqry)
 emcnt = len(emdf.index)
 st.markdown(f"{emcnt} emails {qry_explain}")
 # download results as CSV
@@ -161,7 +136,6 @@ gb.configure_column('from', maxWidth=225)
 gb.configure_column('to', maxWidth=425)
 
 gridOptions = gb.build()
-
 grid_response = AgGrid(emdf,
                        gridOptions=gridOptions,
                        return_mode_values='AS_INPUT',
@@ -181,12 +155,12 @@ dc_pg_gif = dc_base + dc_id + '/pages/' + dc_slug + '-p{pg}-' + dc_gif_sz + \
             '.gif'
 dc_aws_pdf = dc_aws + dc_id + '/' + dc_slug + '.pdf'
 
-if selected:
+if selected is not None:
     """## Email Details"""
-    el_disp = selected[0]["entities"][1:-1].replace("'", "")
-    st.markdown(f'**Entities**: `{el_disp}`')
-    st.markdown(f'**Topic Words:** `{selected[0]["top_topic"]}`')
-    pg = int(selected[0]["pg_number"])
+    #el_disp = selected.iloc[0]["entities"][1:-1].replace("'", "")
+    st.markdown(f'**Entities**: `{selected.iloc[0]["entities"]}`')
+    st.markdown(f'**Topic Words:** `{selected.iloc[0]["top_topic"]}`')
+    pg = int(selected.iloc[0]["pg_number"])
     st.markdown('**Email Preview:** ')
     st.markdown('<iframe src=' + dc_pg_gif.format(pg=pg) +
                 ' width="100%" height="1300">', unsafe_allow_html=True)
