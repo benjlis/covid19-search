@@ -117,10 +117,7 @@ emqry = selfrom + where + where_ent + where_top + where_ft + ' order by sent'
 emdf = conn.query(emqry)
 emcnt = len(emdf.index)
 st.markdown(f"{emcnt} emails {qry_explain}")
-# download results as CSV
-csv = emdf.to_csv().encode('utf-8')
-st.download_button(label="CSV download", data=csv,
-                   file_name='foia-covid19.csv', mime='text/csv')
+
 # generate AgGrid
 gb = GridOptionsBuilder.from_dataframe(emdf)
 gb.configure_default_column(value=True, editable=False)
