@@ -8,8 +8,8 @@ from st_aggrid import AgGrid
 from st_aggrid.grid_options_builder import GridOptionsBuilder
 
 
-st.set_page_config(page_title="COVID-19 Archive Prototype", layout="wide")
-st.title("COVID-19 Archive Prototype")
+st.set_page_config(page_title="COVID-19 Corpus", layout="wide")
+st.title("COVID-19 Corpus")
 """
 Our COVID-19 Archive aims to aggregate digitized documents related to the the
 initial phases of the pandemic.  They are now divided into individual emails, which can be searched
