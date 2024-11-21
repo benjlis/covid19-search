@@ -12,14 +12,9 @@ st.set_page_config(page_title="COVID-19 Archive Prototype", layout="wide")
 st.title("COVID-19 Archive Prototype")
 """
 Our COVID-19 Archive aims to aggregate digitized documents related to the the
-initial phases of the pandemic. To start, we have processed the emails of
-Dr. Anthony Fauci, director of the National Institute of Allergy and Infectious
-Diseases. They are now divided into individual emails, which can be searched
+initial phases of the pandemic.  They are now divided into individual emails, which can be searched
 and sorted with the original metadata (from, to, subject, etc.) as well as new
 metadata we generated using topic modeling and named entity recognition.
-
-* Source: MuckRock/DocumentCloud | Contributor: Jason Leopold
-* https://www.documentcloud.org/documents/20793561-leopold-nih-foia-anthony-fauci-emails
 """
 
 conn = st.connection("postgresql", type="sql", ttl="1d" )
