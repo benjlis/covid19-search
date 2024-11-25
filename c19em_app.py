@@ -20,8 +20,7 @@ metadata we generated using topic modeling and named entity recognition.
 conn = st.connection("postgresql", type="sql", ttl="1d" )
 
 def get_entity_list(qual):
-    q = f'SELECT entity from covid19.entities where entity_id <= 515 and \
-    enttype {qual} order by entity'
+    q = f'SELECT entity from covid19.entities where enttype {qual} order by entity'
     return conn.query(q)
 
 def get_topic_list():
@@ -36,31 +35,43 @@ org_list = get_entity_list("= 'ORG' ")
 loc_list = get_entity_list("in ('GPE', 'LOC', 'NORP', 'FAC') ")
 topic_list = get_topic_list()
 
-"""## Daily Email Volume, January - May 2020"""
+"""## Emails"""
 
 emcnts = """
 select date(sent) date, count(*) emails
     from covid19.emails
-    where file_id = 1000 and sent >= '2020-01-01'
+    where sent between '2019-11-01' and '2021-05-07'
     group by date
     order by date;
 """
 cntsdf = conn.query(emcnts)
-cntsdf['date'] = pd.to_datetime(cntsdf['date']).dt.date
-st.vega_lite_chart(cntsdf, {"mark": {"type": "bar"},
-                             "encoding": {
-                                "x": {"field": 'date', "type": "temporal",
-                                        "axis": {"format": '%m-%d'}},
-                                "y": {"field": 'emails', "type": "quantitative"},
-                                }
-                            }, use_container_width=True)  
+cntsdf['date'] = pd.to_datetime(cntsdf['date'])
+
+# Create the Vega-Lite chart with custom date format and tooltip
+st.vega_lite_chart(cntsdf, {
+    "mark": {"type": "bar"},
+    "encoding": {
+        "x": {
+            "field": 'date', 
+            "type": "temporal",
+            "axis": {
+                "format": "%m-%Y"  # Format for x-axis labels
+            }
+        },
+        "y": {"field": 'emails', "type": "quantitative"},
+        "tooltip": [
+            {"field": 'date', "type": "temporal", "format": "%m-%d-%Y"},  # Format for tooltip
+            {"field": 'emails', "type": "quantitative"}
+        ]
+    }
+}, use_container_width=True)
 
 
 """## Search Emails """
 with st.form(key='query_params'):
     cols = st.columns(2)
-    begin_date = cols[0].date_input('Start Date', datetime.date(2020, 1, 23))
-    end_date = cols[1].date_input('End Date', datetime.date(2020, 5, 6))
+    begin_date = cols[0].date_input('Start Date', datetime.date(2019, 11, 1))
+    end_date = cols[1].date_input('End Date', datetime.date(2021, 5, 7))
     persons = st.multiselect('Person(s):', person_list)
     orgs = st.multiselect('Organization(s):', org_list)
     locations = st.multiselect('Location(s):', loc_list)
@@ -78,7 +89,7 @@ entities = persons + orgs + locations
 selfrom = """
 select email_id, pg_number, sent, subject, from_email "from", to_emails "to",
        top_topic, entities
-    from covid19.fauci_emails
+    from covid19.emails
 """
 where = f"where sent between '{begin_date}' and '{end_date}'"
 qry_explain = where[6:].replace("'", "")
