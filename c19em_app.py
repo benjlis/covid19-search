@@ -87,9 +87,9 @@ with st.form(key='query_params'):
 """ ## Search Results """
 entities = persons + orgs + locations
 selfrom = """
-select email_id, pg_number, sent, subject, from_email "from", to_emails "to",
-       top_topic, entities
-    from covid19.emails
+select email_id, file_pg_start pg_number, sent, subject, from_email "from", to_emails "to",  
+   topic top_topic, entities, foiarchive_file,  preview_email_url
+   from covid19.dc19_emails
 """
 where = f"where sent between '{begin_date}' and '{end_date}'"
 qry_explain = where[6:].replace("'", "")
