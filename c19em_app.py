@@ -87,8 +87,8 @@ with st.form(key='query_params'):
 """ ## Search Results """
 entities = persons + orgs + locations
 selfrom = """
-select email_id, file_pg_start pg_number, sent, subject, from_email "from", to_emails "to",  
-   topic top_topic, entities, foiarchive_file,  preview_email_url
+select sent, subject, from_email "from", to_emails "to", foiarchive_file "file",  file_pg_start pg, email_id id, 
+   topic top_topic, entities, source_email_url,  preview_email_url
    from covid19.dc19_emails
 """
 where = f"where sent between '{begin_date}' and '{end_date}'"
@@ -129,10 +129,12 @@ gb = GridOptionsBuilder.from_dataframe(emdf)
 gb.configure_default_column(value=True, editable=False)
 gb.configure_grid_options(domLayout='normal')
 gb.configure_selection(selection_mode='single', groupSelectsChildren=False)
-gb.configure_column('email_id', hide=True)
-gb.configure_column('pg_number', hide=True)
+#gb.configure_column('email_id', hide=True)
+#gb.configure_column('pg_number', hide=True)
 gb.configure_column('top_topic', hide=True)
 gb.configure_column('entities', hide=True)
+gb.configure_column('source_email_url', hide=True)
+gb.configure_column('preview_email_url', hide=True)
 gb.configure_column('sent', maxWidth=150)
 gb.configure_column('subject', maxWidth=600)
 gb.configure_column('from', maxWidth=225)
@@ -147,28 +149,14 @@ grid_response = AgGrid(emdf,
                        enable_enterprise_modules=False)
 selected = grid_response['selected_rows']
 
-# define DocumentCloud references
-dc_base = 'https://www.documentcloud.org/documents/'
-dc_aws = 'https://s3.documentcloud.org/documents/'
-dc_id = '20793561'
-dc_slug = 'leopold-nih-foia-anthony-fauci-emails'
-dc_gif_sz = 'large'
-dc_doc_url = dc_base + dc_id + '-' + dc_slug
-dc_pg_gif = dc_base + dc_id + '/pages/' + dc_slug + '-p{pg}-' + dc_gif_sz + \
-            '.gif'
-dc_aws_pdf = dc_aws + dc_id + '/' + dc_slug + '.pdf'
-
 if selected is not None:
     """## Email Details"""
-    #el_disp = selected.iloc[0]["entities"][1:-1].replace("'", "")
     st.markdown(f'**Entities**: `{selected.iloc[0]["entities"]}`')
     st.markdown(f'**Topic Words:** `{selected.iloc[0]["top_topic"]}`')
-    pg = int(selected.iloc[0]["pg_number"])
     st.markdown('**Email Preview:** ')
-    st.markdown('<iframe src=' + dc_pg_gif.format(pg=pg) +
-                ' width="100%" height="1300">', unsafe_allow_html=True)
-    st.markdown(f'[**View Full Email on DocumentCloud**]({dc_aws_pdf}#page=\
-{pg})')
+    st.markdown(f'<iframe src="{selected.iloc[0]["preview_email_url"]}"' +  \
+                 ' width="100%" height="1300">', unsafe_allow_html=True)
+    st.markdown(f'**[View Full PDF]({selected.iloc[0]["source_email_url"]})**')
 
 else:
     st.write('Select row to view additional email details')
