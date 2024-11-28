@@ -71,20 +71,17 @@ MIN_SENT = datetime.date(2019, 11, 1)
 MAX_SENT = datetime.date(2021, 5, 8)
 
 with st.form(key='query_params'):
-    # cols = st.columns(2)
-    # begin_date = cols[0].date_input('Start Date')
-    # end_date = cols[1].date_input('End Date')
-    dates = st.date_input("Date Range", value=[], 
-                            min_value=MIN_SENT, max_value=MAX_SENT)
-    null_date = st.checkbox("Include documents without a date", value=True) 
-    persons = st.multiselect('Person(s):', person_list)
-    orgs = st.multiselect('Organization(s):', org_list)
-    locations = st.multiselect('Location(s):', loc_list)
-    topics = st.multiselect('Topic(s):', topic_list)
     ftq_text = st.text_input('Full Text Search:', '',
                              help='Perform full text search. Use double quotes \
                              for phrases, OR for logical or, and - for \
                              logical not.')
+    persons = st.multiselect('Person(s):', person_list)
+    orgs = st.multiselect('Organization(s):', org_list)
+    locations = st.multiselect('Location(s):', loc_list)
+    topics = st.multiselect('Topic(s):', topic_list)
+    dates = st.date_input("Date Range", value=[], 
+                            min_value=MIN_SENT, max_value=MAX_SENT)
+    null_date = st.checkbox("Include documents without a date", value=True) 
     query = st.form_submit_button(label='Execute Search')
 
 """ ## Search Results """
