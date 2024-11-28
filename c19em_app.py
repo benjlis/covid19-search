@@ -6,6 +6,7 @@ import psycopg2
 import datetime
 from st_aggrid import AgGrid
 from st_aggrid.grid_options_builder import GridOptionsBuilder
+import sqlgen as sg
 
 
 st.set_page_config(page_title="COVID-19 Corpus", layout="wide")
@@ -24,9 +25,7 @@ def get_entity_list(qual):
     return conn.query(q)
 
 def get_topic_list():
-    tq = """select distinct top_topic
-               from covid19.fauci_emails
-               where top_topic is not null"""
+    tq = "select topic from covid19.topics order by topic"
     return conn.query(tq)
 
 # build dropdown lists for entity search
@@ -37,18 +36,18 @@ topic_list = get_topic_list()
 
 """## Emails"""
 
-emcnts = """
+chartqry = """
 select date(sent) date, count(*) emails
     from covid19.emails
     where sent between '2019-11-01' and '2021-05-07'
     group by date
     order by date;
 """
-cntsdf = conn.query(emcnts)
-cntsdf['date'] = pd.to_datetime(cntsdf['date'])
+chartdf = conn.query(chartqry)
+chartdf['date'] = pd.to_datetime(chartdf['date'])
 
 # Create the Vega-Lite chart with custom date format and tooltip
-st.vega_lite_chart(cntsdf, {
+st.vega_lite_chart(chartdf, {
     "mark": {"type": "bar"},
     "encoding": {
         "x": {
@@ -68,10 +67,16 @@ st.vega_lite_chart(cntsdf, {
 
 
 """## Search Emails """
+MIN_SENT = datetime.date(2019, 11, 1)
+MAX_SENT = datetime.date(2021, 5, 8)
+
 with st.form(key='query_params'):
-    cols = st.columns(2)
-    begin_date = cols[0].date_input('Start Date', datetime.date(2019, 11, 1))
-    end_date = cols[1].date_input('End Date', datetime.date(2021, 5, 7))
+    # cols = st.columns(2)
+    # begin_date = cols[0].date_input('Start Date')
+    # end_date = cols[1].date_input('End Date')
+    dates = st.date_input("Date Range", value=[], 
+                            min_value=MIN_SENT, max_value=MAX_SENT)
+    null_date = st.checkbox("Include documents without a date", value=True) 
     persons = st.multiselect('Person(s):', person_list)
     orgs = st.multiselect('Organization(s):', org_list)
     locations = st.multiselect('Location(s):', loc_list)
@@ -81,17 +86,24 @@ with st.form(key='query_params'):
                              for phrases, OR for logical or, and - for \
                              logical not.')
     query = st.form_submit_button(label='Execute Search')
-    where_ent = where_ft = ''
-
 
 """ ## Search Results """
+where = where_ent = where_ft = ''
 entities = persons + orgs + locations
 selfrom = """
 select sent, subject, from_email "from", to_emails "to", foiarchive_file "file",  file_pg_start pg, email_id id, 
    topic top_topic, entities, source_email_url,  preview_email_url
    from covid19.dc19_emails
 """
-where = f"where sent between '{begin_date}' and '{end_date}'"
+start_date, end_date = sg.convert_daterange(dates, "%Y/%m/%d")
+date_predicate = sg.daterange_predicate('authored',
+                                        start_date, end_date, null_date, 
+                                        MIN_SENT, MAX_SENT)
+
+if date_predicate:
+    where =+ date_predicate
+#if begin_date and end_date:
+#    where = f"where sent between '{begin_date}' and '{end_date}'"
 qry_explain = where[6:].replace("'", "")
 where_ent = where_ft = where_top = ''
 if entities:
@@ -119,7 +131,7 @@ if ftq_text:
 ('english', '{ftq_text}')"
     qry_explain += f' and text body contains "{ftq_text}"'
 # execute query
-emqry = selfrom + where + where_ent + where_top + where_ft + ' order by sent'
+emqry = selfrom + where + where_ent + where_top + where_ft + ' order by sent, file_pg_start'
 emdf = conn.query(emqry)
 emcnt = len(emdf.index)
 st.markdown(f"{emcnt} emails {qry_explain}")
