@@ -79,67 +79,67 @@ with st.form(key='query_params'):
     orgs = st.multiselect('Organization(s):', org_list)
     locations = st.multiselect('Location(s):', loc_list)
     topics = st.multiselect('Topic(s):', topic_list)
-    dates = st.date_input("Date Range", value=[], 
-                            min_value=MIN_SENT, max_value=MAX_SENT)
+    dates = st.date_input("Date Range", value=[])
     null_date = st.checkbox("Include documents without a date", value=True) 
     query = st.form_submit_button(label='Execute Search')
 
 """ ## Search Results """
-where = where_ent = where_ft = ''
-entities = persons + orgs + locations
 selfrom = """
 select sent, subject, from_email "from", to_emails "to", foiarchive_file "file",  file_pg_start pg, email_id id, 
    topic top_topic, entities, source_email_url,  preview_email_url
    from covid19.dc19_emails
 """
-start_date, end_date = sg.convert_daterange(dates, "%Y/%m/%d")
-date_predicate = sg.daterange_predicate('authored',
-                                        start_date, end_date, null_date, 
-                                        MIN_SENT, MAX_SENT)
-
-if date_predicate:
-    where =+ date_predicate
-#if begin_date and end_date:
-#    where = f"where sent between '{begin_date}' and '{end_date}'"
-qry_explain = where[6:].replace("'", "")
-where_ent = where_ft = where_top = ''
+sql_predicates = []
+display_predicates = []
+# full text
+if ftq_text:
+    ftq_text = ftq_text.replace("'", '"')
+    sg.add_predicate(sql_predicates, f"to_tsvector('english', body) @@ \
+                     websearch_to_tsquery('english', '{ftq_text}')")
+    sg.add_predicate(display_predicates, f"and text body contains '{ftq_text}'")
+# entities
+entities = persons + orgs + locations
 if entities:
     # build entity in list
     entincl = "'{"
     for e in entities:
         entincl += f'"{e}", '
     entincl = entincl[:-2] + "}'"
-    where_ent = f" and entities && {entincl}::text[]"
+    entity_predicate = f"entities && {entincl}::text[]"
+    sg.add_predicate(sql_predicates, entity_predicate)
     tq = ''
     if len(entities) > 1:
         tq = 'at least one of'
-    qry_explain += f" and email references {tq} {entincl[2:-2]}"
-if topics:
-    topincl = "("
-    for t in topics:
-        topincl += f"'{t}', "
-    topincl = topincl[:-2] + ')'
-    where_top = f" and top_topic in {topincl}"
-    qry_explain += f" and topic is {topincl[1:-1]}"
-if ftq_text:
-    if ftq_text[0] == "'":         # replace single quote with double
-        ftq_text = '"' + ftq_text[1:-1:] + '"'
-    where_ft = f" and to_tsvector('english', body) @@ websearch_to_tsquery\
-('english', '{ftq_text}')"
-    qry_explain += f' and text body contains "{ftq_text}"'
+    entity_explain = f" and email references {tq} {entincl[2:-2]}"
+    sg.add_predicate(display_predicates, entity_explain)
+# topics
+topics_predicate = sg.lov_predicate('topic', topics)
+sg.add_predicate(sql_predicates, topics_predicate)
+sg.add_predicate(display_predicates, topics_predicate)
+# dates
+start_date, end_date = sg.convert_daterange(dates, "%Y/%m/%d")
+date_predicate = sg.daterange_predicate('sent',
+                                        start_date, end_date, null_date, 
+                                        MIN_SENT, MAX_SENT)
+sg.add_predicate(sql_predicates, date_predicate)
+sg.add_predicate(display_predicates, date_predicate)
+
+where_clause = sg.where_clause(sql_predicates)
+query_display = sg.where_clause(display_predicates)
+
+
 # execute query
-emqry = selfrom + where + where_ent + where_top + where_ft + ' order by sent, file_pg_start'
-emdf = conn.query(emqry)
-emcnt = len(emdf.index)
-st.markdown(f"{emcnt} emails {qry_explain}")
+emqry = selfrom + where_clause
+if query:
+    emdf = conn.query(emqry)
+    emcnt = len(emdf.index)
+    st.markdown(f"{emcnt} emails {query_display}")
 
 # generate AgGrid
 gb = GridOptionsBuilder.from_dataframe(emdf)
 gb.configure_default_column(value=True, editable=False)
 gb.configure_grid_options(domLayout='normal')
 gb.configure_selection(selection_mode='single', groupSelectsChildren=False)
-#gb.configure_column('email_id', hide=True)
-#gb.configure_column('pg_number', hide=True)
 gb.configure_column('top_topic', hide=True)
 gb.configure_column('entities', hide=True)
 gb.configure_column('source_email_url', hide=True)
