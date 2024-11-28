@@ -83,92 +83,88 @@ with st.form(key='query_params'):
     null_date = st.checkbox("Include documents without a date", value=True) 
     query = st.form_submit_button(label='Execute Search')
 
-""" ## Search Results """
-selfrom = """
-select sent, subject, from_email "from", to_emails "to", foiarchive_file "file",  file_pg_start pg, email_id id, 
-   topic top_topic, entities, source_email_url,  preview_email_url
-   from covid19.dc19_emails
-"""
-sql_predicates = []
-display_predicates = []
-# full text
-if ftq_text:
-    ftq_text = ftq_text.replace("'", '"')
-    sg.add_predicate(sql_predicates, f"to_tsvector('english', body) @@ \
-                     websearch_to_tsquery('english', '{ftq_text}')")
-    sg.add_predicate(display_predicates, f"and text body contains '{ftq_text}'")
-# entities
-entities = persons + orgs + locations
-if entities:
-    # build entity in list
-    entincl = "'{"
-    for e in entities:
-        entincl += f'"{e}", '
-    entincl = entincl[:-2] + "}'"
-    entity_predicate = f"entities && {entincl}::text[]"
-    sg.add_predicate(sql_predicates, entity_predicate)
-    tq = ''
-    if len(entities) > 1:
-        tq = 'at least one of'
-    entity_explain = f" and email references {tq} {entincl[2:-2]}"
-    sg.add_predicate(display_predicates, entity_explain)
-# topics
-topics_predicate = sg.lov_predicate('topic', topics)
-sg.add_predicate(sql_predicates, topics_predicate)
-sg.add_predicate(display_predicates, topics_predicate)
-# dates
-start_date, end_date = sg.convert_daterange(dates, "%Y/%m/%d")
-date_predicate = sg.daterange_predicate('sent',
-                                        start_date, end_date, null_date, 
-                                        MIN_SENT, MAX_SENT)
-sg.add_predicate(sql_predicates, date_predicate)
-sg.add_predicate(display_predicates, date_predicate)
-
-where_clause = sg.where_clause(sql_predicates)
-query_display = sg.where_clause(display_predicates)
-
-
-# execute query
-emqry = selfrom + where_clause
 if query:
+    """ ## Search Results """
+    selfrom = """select sent, subject, from_email "from", to_emails "to", 
+                        foiarchive_file "file",  file_pg_start pg, email_id id, 
+                        topic top_topic, entities, source_email_url,  preview_email_url
+                from covid19.dc19_emails
+            """
+    sql_predicates = []
+    display_predicates = []
+    # full text
+    if ftq_text:
+        ftq_text = ftq_text.replace("'", '"')
+        sg.add_predicate(sql_predicates, f"to_tsvector('english', body) @@ \
+                         websearch_to_tsquery('english', '{ftq_text}')")
+        sg.add_predicate(display_predicates, f"and text body contains '{ftq_text}'")
+    # entities
+    entities = persons + orgs + locations
+    if entities:
+        # build entity in list
+        entincl = "'{"
+        for e in entities:
+            entincl += f'"{e}", '
+        entincl = entincl[:-2] + "}'"
+        entity_predicate = f"entities && {entincl}::text[]"
+        sg.add_predicate(sql_predicates, entity_predicate)
+        tq = ''
+        if len(entities) > 1:
+            tq = 'at least one of'
+        entity_explain = f" and email references {tq} {entincl[2:-2]}"
+        sg.add_predicate(display_predicates, entity_explain)
+    # topics
+    topics_predicate = sg.lov_predicate('topic', topics)
+    sg.add_predicate(sql_predicates, topics_predicate)
+    sg.add_predicate(display_predicates, topics_predicate)
+    # dates
+    start_date, end_date = sg.convert_daterange(dates, "%Y/%m/%d")
+    date_predicate = sg.daterange_predicate('sent',
+                                            start_date, end_date, null_date, 
+                                            MIN_SENT, MAX_SENT)
+    sg.add_predicate(sql_predicates, date_predicate)
+    sg.add_predicate(display_predicates, date_predicate)
+
+    where_clause = sg.where_clause(sql_predicates)
+    query_display = sg.where_clause(display_predicates)
+    # execute query
+    emqry = selfrom + where_clause
     emdf = conn.query(emqry)
     emcnt = len(emdf.index)
     st.markdown(f"{emcnt} emails {query_display}")
+    # generate AgGrid
+    gb = GridOptionsBuilder.from_dataframe(emdf)
+    gb.configure_default_column(value=True, editable=False)
+    gb.configure_grid_options(domLayout='normal')
+    gb.configure_selection(selection_mode='single', groupSelectsChildren=False)
+    gb.configure_column('top_topic', hide=True)
+    gb.configure_column('entities', hide=True)
+    gb.configure_column('source_email_url', hide=True)
+    gb.configure_column('preview_email_url', hide=True)
+    gb.configure_column('sent', maxWidth=150)
+    gb.configure_column('subject', maxWidth=600)
+    gb.configure_column('from', maxWidth=225)
+    gb.configure_column('to', maxWidth=425)
 
-# generate AgGrid
-gb = GridOptionsBuilder.from_dataframe(emdf)
-gb.configure_default_column(value=True, editable=False)
-gb.configure_grid_options(domLayout='normal')
-gb.configure_selection(selection_mode='single', groupSelectsChildren=False)
-gb.configure_column('top_topic', hide=True)
-gb.configure_column('entities', hide=True)
-gb.configure_column('source_email_url', hide=True)
-gb.configure_column('preview_email_url', hide=True)
-gb.configure_column('sent', maxWidth=150)
-gb.configure_column('subject', maxWidth=600)
-gb.configure_column('from', maxWidth=225)
-gb.configure_column('to', maxWidth=425)
+    gridOptions = gb.build()
+    grid_response = AgGrid(emdf,
+                           gridOptions=gridOptions,
+                           return_mode_values='AS_INPUT',
+                           update_mode='SELECTION_CHANGED',
+                           allow_unsafe_jscode=False,
+                           enable_enterprise_modules=False)
+    selected = grid_response['selected_rows']
 
-gridOptions = gb.build()
-grid_response = AgGrid(emdf,
-                       gridOptions=gridOptions,
-                       return_mode_values='AS_INPUT',
-                       update_mode='SELECTION_CHANGED',
-                       allow_unsafe_jscode=False,
-                       enable_enterprise_modules=False)
-selected = grid_response['selected_rows']
-
-if selected is not None:
-    """## Email Details"""
-    st.markdown(f'**Entities**: `{selected.iloc[0]["entities"]}`')
-    st.markdown(f'**Topic Words:** `{selected.iloc[0]["top_topic"]}`')
-    st.markdown('**Email Preview:** ')
-    st.markdown(f'<iframe src="{selected.iloc[0]["preview_email_url"]}"' +  \
-                 ' width="100%" height="1300">', unsafe_allow_html=True)
-    st.markdown(f'**[View Full PDF]({selected.iloc[0]["source_email_url"]})**')
-
-else:
-    st.write('Select row to view additional email details')
+    if selected is not None:
+        """## Email Details"""
+        st.markdown(f'**Entities**: `{selected.iloc[0]["entities"]}`')
+        st.markdown(f'**Topic Words:** `{selected.iloc[0]["top_topic"]}`')
+        st.markdown('**Email Preview:** ')
+        st.markdown(f'<iframe src="{selected.iloc[0]["preview_email_url"]}"' +  \
+                    ' width="100%" height="1300">', unsafe_allow_html=True)
+        st.markdown(f'**[View Full PDF]({selected.iloc[0]["source_email_url"]})**')
+    else:
+        st.write('Select row to view additional email details')
 """
 ## About
 Columbia University's [History Lab](http://history-lab.org)
