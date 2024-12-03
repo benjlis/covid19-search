@@ -96,7 +96,7 @@ if ftq_text:
     ftq_text = ftq_text.replace("'", '"')
     sg.add_predicate(sql_predicates, f"to_tsvector('english', body) @@ \
                         websearch_to_tsquery('english', '{ftq_text}')")
-    sg.add_predicate(display_predicates, f"and text body contains '{ftq_text}'")
+    sg.add_predicate(display_predicates, f"text body contains '{ftq_text}'")
 # entities
 entities = persons + orgs + locations
 if entities:
