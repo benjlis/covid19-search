@@ -65,7 +65,7 @@ st.vega_lite_chart(chartdf, {
 }, use_container_width=True)
 
 
-"""## Search Emails """
+"""## Search"""
 MIN_SENT = datetime.date(2019, 11, 1)
 MAX_SENT = datetime.date(2021, 5, 8)
 
@@ -83,7 +83,7 @@ with st.form(key='query_params'):
     query = st.form_submit_button(label='Execute Search')
 
 
-""" ## Search Results """
+""" ## Results """
 selfrom = """select sent, subject, from_email "from", to_emails "to", 
                     foiarchive_file "file",  file_pg_start pg, email_id id, 
                     topic top_topic, entities, source_email_url,  preview_email_url
@@ -165,7 +165,7 @@ grid_response = AgGrid(emdf,
 selected = grid_response['selected_rows']
 
 if selected is not None:
-    """## Email Details"""
+    """## Details"""
     st.markdown(f'**Entities**: `{selected.iloc[0]["entities"]}`')
     st.markdown(f'**Topic Words:** `{selected.iloc[0]["top_topic"]}`')
     st.markdown('**Email Preview:** ')
