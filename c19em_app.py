@@ -164,7 +164,9 @@ grid_response = AgGrid(emdf,
                         update_mode='SELECTION_CHANGED',
                         allow_unsafe_jscode=False,
                         enable_enterprise_modules=False)
+st.write('Select row to view additional email details')
 selected = grid_response['selected_rows']
+
 
 if selected is not None:
     """## Details"""
@@ -180,8 +182,6 @@ if selected is not None:
     else:
         st.write(f"Failed to download {preview_pdf_url}, \
                  status code: {response.status_code}.")
-else:
-    st.write('Select row to view additional email details')
 """
 ## About
 Columbia University's [History Lab](http://history-lab.org)
