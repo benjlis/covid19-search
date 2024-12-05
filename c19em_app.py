@@ -83,9 +83,7 @@ with st.form(key='query_params'):
     dates = st.date_input("Date Range", value=[])
     null_date = st.checkbox("Include documents without a date", value=True) 
     query = st.form_submit_button(label='Execute Search')
-
-
-""" ## Results """
+# build query
 selfrom = """select sent, subject, from_email "from", to_emails "to", 
                     foiarchive_file "file",  file_pg_start pg, email_id id, 
                     topic top_topic, entities, source_email_url,  preview_email_url
@@ -132,7 +130,12 @@ query_display = sg.where_clause(display_predicates)
 emqry = selfrom + where_clause
 emdf = conn.query(emqry)
 emcnt = len(emdf.index)
-st.markdown(f"{emcnt} emails {query_display}")
+
+st.write(f"""## Results   
+{emcnt} emails {query_display}  
+select row to view additional details
+""")
+
 # generate AgGrid
 gb = GridOptionsBuilder.from_dataframe(emdf)
 gb.configure_default_column(value=True, editable=False)
@@ -155,7 +158,6 @@ max_height = 310  # Maximum height for the grid
 total_height = base_height + (row_height * emcnt)
 # Ensure the total height does not exceed the maximum height
 total_height = min(total_height, max_height)
-
 gridOptions = gb.build()
 grid_response = AgGrid(emdf,
                         gridOptions=gridOptions,
@@ -164,21 +166,18 @@ grid_response = AgGrid(emdf,
                         update_mode='SELECTION_CHANGED',
                         allow_unsafe_jscode=False,
                         enable_enterprise_modules=False)
-st.write('Select row to view additional email details')
 selected = grid_response['selected_rows']
-
-
 if selected is not None:
-    """## Details"""
-    st.markdown(f'**Entities**: `{selected.iloc[0]["entities"]}`')
-    st.markdown(f'**Topic Words:** `{selected.iloc[0]["top_topic"]}`')
-    st.markdown('**Email Preview:** ')
+    st.write(f"""details on `{selected.iloc[0]["subject"]}`  
+                entities: `{selected.iloc[0]["entities"]}`  
+                topic words: `{selected.iloc[0]["top_topic"]}`  
+                first page preview:""")
     preview_pdf_url = selected.iloc[0]["preview_email_url"]
     response = requests.get(preview_pdf_url)
     if response.status_code == 200:
         with st.container(border=True):
             pdf_viewer(response.content)
-        st.markdown(f'**[View Full PDF]({selected.iloc[0]["source_email_url"]})**')
+        st.markdown(f'**[view full PDF]({selected.iloc[0]["source_email_url"]})**')
     else:
         st.write(f"Failed to download {preview_pdf_url}, \
                  status code: {response.status_code}.")
