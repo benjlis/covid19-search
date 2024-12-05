@@ -1,5 +1,7 @@
 """Streamlit app for FOIA Explorer COVID-19 Emails"""
 import streamlit as st
+from streamlit_pdf_viewer import pdf_viewer
+import requests
 import pandas as pd
 import altair as alt
 import psycopg2
@@ -148,7 +150,7 @@ gb.configure_column('to', maxWidth=425)
 # Define base height and additional height per row
 base_height = 50  # Base height for the grid
 row_height = 25    # Height per row
-max_height = 400  # Maximum height for the grid
+max_height = 310  # Maximum height for the grid
 # Calculate total height
 total_height = base_height + (row_height * emcnt)
 # Ensure the total height does not exceed the maximum height
@@ -169,9 +171,15 @@ if selected is not None:
     st.markdown(f'**Entities**: `{selected.iloc[0]["entities"]}`')
     st.markdown(f'**Topic Words:** `{selected.iloc[0]["top_topic"]}`')
     st.markdown('**Email Preview:** ')
-    st.markdown(f'<iframe src="{selected.iloc[0]["preview_email_url"]}"' +  \
-                ' width="100%" height="1300">', unsafe_allow_html=True)
-    st.markdown(f'**[View Full PDF]({selected.iloc[0]["source_email_url"]})**')
+    preview_pdf_url = selected.iloc[0]["preview_email_url"]
+    response = requests.get(preview_pdf_url)
+    if response.status_code == 200:
+        with st.container(border=True):
+            pdf_viewer(response.content)
+        st.markdown(f'**[View Full PDF]({selected.iloc[0]["source_email_url"]})**')
+    else:
+        st.write(f"Failed to download {preview_pdf_url}, \
+                 status code: {response.status_code}.")
 else:
     st.write('Select row to view additional email details')
 """
