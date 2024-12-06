@@ -127,12 +127,13 @@ sg.add_predicate(display_predicates, date_predicate)
 where_clause = sg.where_clause(sql_predicates)
 query_display = sg.where_clause(display_predicates)
 # execute query
-emqry = selfrom + where_clause
+MAX_LIMIT = 2000
+emqry = selfrom + where_clause + f' limit {MAX_LIMIT}'
 emdf = conn.query(emqry)
 emcnt = len(emdf.index)
 
 st.write(f"""## Results   
-{emcnt} emails {query_display}  
+{emcnt} {'(max limit)'if emcnt == MAX_LIMIT else ''} emails {query_display}  
 select row to view additional details
 """)
 
