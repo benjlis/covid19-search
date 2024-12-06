@@ -136,7 +136,8 @@ st.write(f"""## Results
 {emcnt} {'(max limit)'if emcnt == MAX_LIMIT else ''} emails {query_display}  
 select row to view additional details
 """)
-
+emdf['sent'] = pd.to_datetime(emdf['sent'])
+emdf['sent'] = emdf['sent'].dt.strftime('%Y-%m-%d %H:%M')
 # generate AgGrid
 gb = GridOptionsBuilder.from_dataframe(emdf)
 gb.configure_default_column(value=True, editable=False)
