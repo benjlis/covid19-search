@@ -154,8 +154,8 @@ gb.configure_column('to', maxWidth=425)
 
 # Define base height and additional height per row
 base_height = 50  # Base height for the grid
-row_height = 25    # Height per row
-max_height = 310  # Maximum height for the grid
+row_height = 16    # Height per row
+max_height = 260  # Maximum height for the grid
 # Calculate total height
 total_height = base_height + (row_height * emcnt)
 # Ensure the total height does not exceed the maximum height
