@@ -86,7 +86,7 @@ with st.form(key='query_params'):
 # build query
 selfrom = """select sent, subject, from_email "from", to_emails "to", 
                     foiarchive_file "file",  file_pg_start pg, email_id id, 
-                    topic top_topic, entities, source_email_url,  preview_email_url
+                    topic top_topic, entities, source_locale, source_email_url,  preview_email_url
             from covid19.dc19_emails
         """
 sql_predicates = []
