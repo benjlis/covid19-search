@@ -176,14 +176,17 @@ if selected is not None:
                 topic words: `{selected.iloc[0]["top_topic"]}`  
                 first page preview:""")
     preview_pdf_url = selected.iloc[0]["preview_email_url"]
-    response = requests.get(preview_pdf_url)
-    if response.status_code == 200:
-        with st.container(border=True):
-            pdf_viewer(response.content)
-        st.markdown(f'**[view full PDF]({selected.iloc[0]["source_email_url"]})**')
-    else:
-        st.write(f"Failed to download {preview_pdf_url}, \
-                 status code: {response.status_code}.")
+    if selected.iloc[0]['source_locale'] == 'documentcloud':
+        
+    else:   
+        response = requests.get(preview_pdf_url)
+        if response.status_code == 200:
+            with st.container(border=True):
+                pdf_viewer(response.content)
+                st.markdown(f'**[view full PDF]({selected.iloc[0]["source_email_url"]})**')
+        else:
+            st.write(f"Failed to download {preview_pdf_url}, \
+                     status code: {response.status_code}.")
 """
 ## About
 Columbia University's [History Lab](http://history-lab.org)
