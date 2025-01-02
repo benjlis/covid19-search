@@ -8,6 +8,7 @@ import psycopg2
 import datetime
 from st_aggrid import AgGrid, GridOptionsBuilder
 import sqlgen as sg
+import os
 
 
 st.set_page_config(page_title="COVID-19 Corpus", layout="wide")
@@ -18,6 +19,20 @@ initial phases of the pandemic.  They are now divided into individual emails, wh
 and sorted with the original metadata (from, to, subject, etc.) as well as new
 metadata we generated using topic modeling and named entity recognition.
 """
+
+# documentcloud API initiation
+DC_USER = st.secrets['DC_USER']
+DC_PSWD = st.secrets['DC_PSWD']
+access_endpoint = "https://accounts.muckrock.com/api/token/"
+params = {'username': DC_USER, 'password': DC_PSWD}
+response = requests.post(access_endpoint, data = params )
+refresh_token = response.json()["refresh"]
+access_token = response.json()["access"]
+
+# download metadata
+DC_API = "https://api.www.documentcloud.org/api"
+
+
 
 conn = st.connection("postgresql", type="sql", ttl="1d", max_entries=2)
 
@@ -177,13 +192,18 @@ if selected is not None:
                 first page preview:""")
     preview_pdf_url = selected.iloc[0]["preview_email_url"]
     if selected.iloc[0]['source_locale'] == 'documentcloud':
-       st.write(f"DocumentCloud preview not available for this document.") 
+        search_endpoint = f"{DC_API}/oembed?url={preview_pdf_url}" 
+        headers = {'Authorization': f'Bearer {access_token}'}
+        response = requests.get(search_endpoint, headers=headers)
+        documentcloud_viewer=response.json()['html']
+        st.markdown(documentcloud_viewer, unsafe_allow_html=True)
     else:   
         response = requests.get(preview_pdf_url)
         if response.status_code == 200:
             with st.container(border=True):
+                st.markdown(f'Page {selected.iloc[0]["pg"]} of [{selected.iloc[0]["file"]}]({selected.iloc[0]["source_email_url"]})')
                 pdf_viewer(response.content)
-                st.markdown(f'**[view full PDF]({selected.iloc[0]["source_email_url"]})**')
+                # st.markdown(f'**[view full PDF]({selected.iloc[0]["source_email_url"]})**')
         else:
             st.write(f"Failed to download {preview_pdf_url}, \
                      status code: {response.status_code}.")
