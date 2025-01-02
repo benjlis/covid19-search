@@ -177,7 +177,7 @@ if selected is not None:
                 first page preview:""")
     preview_pdf_url = selected.iloc[0]["preview_email_url"]
     if selected.iloc[0]['source_locale'] == 'documentcloud':
-        
+       st.write(f"DocumentCloud preview not available for this document.") 
     else:   
         response = requests.get(preview_pdf_url)
         if response.status_code == 200:
