@@ -11,7 +11,7 @@ import sqlgen as sg
 import os
 
 
-st.set_page_config(page_title="COVID-19 Corpus", layout="wide")
+st.set_page_config(page_title="COVID-19 Corpus")
 st.title("COVID-19 Corpus")
 """
 Our COVID-19 corpus aims aggregates digitized documents related to the the
